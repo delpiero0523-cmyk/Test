@@ -1,0 +1,280 @@
+import { useState } from 'react'
+
+// 停留所のデータ（地図上の位置は % で指定）
+const STOPS = [
+  { id: 1, name: '看護科学大学', x: 20, y: 15 },
+  { id: 2, name: '公民館',       x: 65, y: 25 },
+  { id: 3, name: 'グリーンプラザ', x: 45, y: 55 },
+  { id: 4, name: '東団地入口',   x: 15, y: 60 },
+  { id: 5, name: '中央広場',     x: 75, y: 65 },
+  { id: 6, name: '南停留所',     x: 55, y: 80 },
+]
+
+// 予約フローの状態
+const STEP = {
+  SELECT_FROM: 'SELECT_FROM',   // 出発地を選ぶ
+  SELECT_TO:   'SELECT_TO',     // 目的地を選ぶ
+  SELECT_COUNT: 'SELECT_COUNT', // 人数を選ぶ
+  CONFIRMED:   'CONFIRMED',     // 確定済み
+}
+
+export default function App() {
+  const [step, setStep] = useState(STEP.SELECT_FROM)
+  const [from, setFrom] = useState(null)
+  const [to, setTo]     = useState(null)
+  const [count, setCount] = useState(null)
+  const [showPopup, setShowPopup] = useState(false)
+
+  // 停留所をタップしたとき
+  const handleStopClick = (stop) => {
+    if (step === STEP.SELECT_FROM) {
+      setFrom(stop)
+      setStep(STEP.SELECT_TO)
+    } else if (step === STEP.SELECT_TO) {
+      if (stop.id === from.id) return // 同じ停留所は選べない
+      setTo(stop)
+      setStep(STEP.SELECT_COUNT)
+    }
+  }
+
+  // 人数を選んだとき
+  const handleCountClick = (n) => {
+    setCount(n)
+  }
+
+  // 確定ボタン
+  const handleConfirm = () => {
+    setShowPopup(true)
+    setStep(STEP.CONFIRMED)
+  }
+
+  // もう一度予約する
+  const handleReset = () => {
+    setStep(STEP.SELECT_FROM)
+    setFrom(null)
+    setTo(null)
+    setCount(null)
+    setShowPopup(false)
+  }
+
+  // オペレーターの吹き出しメッセージ
+  const getMessage = () => {
+    if (step === STEP.SELECT_FROM) {
+      return 'どこから乗る？地図から選んでね！'
+    }
+    if (step === STEP.SELECT_TO) {
+      return `「${from.name}」から出発ね！\nどこで降りる？`
+    }
+    if (step === STEP.SELECT_COUNT || step === STEP.CONFIRMED) {
+      return `「${from.name}」から「${to.name}」へ。\n何人で乗る？`
+    }
+    return ''
+  }
+
+  // 停留所ボタンのスタイル（状態に応じて色が変わる）
+  const getStopStyle = (stop) => {
+    if (from && stop.id === from.id) {
+      return 'bg-blue-500 text-white border-blue-600 shadow-lg scale-110'
+    }
+    if (to && stop.id === to.id) {
+      return 'bg-orange-500 text-white border-orange-600 shadow-lg scale-110'
+    }
+    if (step === STEP.SELECT_TO && stop.id === from?.id) {
+      return 'bg-blue-500 text-white border-blue-600'
+    }
+    return 'bg-green-500 text-white border-green-600 hover:bg-green-400 active:scale-95'
+  }
+
+  const canConfirm = count !== null
+
+  return (
+    <div className="relative w-full h-full flex flex-col bg-white overflow-hidden rounded-2xl shadow-2xl">
+
+      {/* ===== ステータスバー（スマホ風） ===== */}
+      <div className="flex-none bg-gray-800 text-white text-xs flex justify-between items-center px-4 py-1 h-6">
+        <span>9:41</span>
+        <span>団地のりあい便</span>
+        <span>●●●</span>
+      </div>
+
+      {/* ===== ヘッダー ===== */}
+      <div className="flex-none bg-green-600 text-white px-4 py-3 flex items-center gap-2 shadow">
+        <span className="text-xl">🚐</span>
+        <div>
+          <p className="font-bold text-sm leading-tight">団地のりあい便</p>
+          <p className="text-xs text-green-100">オンデマンド配車サービス</p>
+        </div>
+        <div className="ml-auto text-xs bg-green-500 px-2 py-1 rounded-full">運行中</div>
+      </div>
+
+      {/* ===== 地図エリア（上半分） ===== */}
+      <div
+        className="relative overflow-hidden"
+        style={{ flex: '0 0 45%' }}
+      >
+        {/* ダミー地図の背景（グリッド線で地図っぽく） */}
+        <div className="absolute inset-0 bg-green-50">
+          {/* 道路（横） */}
+          <div className="absolute bg-gray-300" style={{ top: '35%', left: 0, right: 0, height: 8 }} />
+          <div className="absolute bg-gray-300" style={{ top: '68%', left: 0, right: 0, height: 6 }} />
+          <div className="absolute bg-yellow-100 border-b border-gray-400" style={{ top: '50%', left: 0, right: 0, height: 12 }} />
+          {/* 道路（縦） */}
+          <div className="absolute bg-gray-300" style={{ left: '30%', top: 0, bottom: 0, width: 8 }} />
+          <div className="absolute bg-gray-300" style={{ left: '65%', top: 0, bottom: 0, width: 6 }} />
+          {/* 公園・建物っぽいブロック */}
+          <div className="absolute bg-green-200 rounded" style={{ left: '5%', top: '5%', width: '18%', height: '22%' }} />
+          <div className="absolute bg-green-300 rounded" style={{ left: '50%', top: '58%', width: '12%', height: '18%' }} />
+          <div className="absolute bg-blue-100 rounded" style={{ left: '68%', top: '10%', width: '20%', height: '15%' }} />
+          <div className="absolute bg-gray-200 rounded" style={{ left: '10%', top: '65%', width: '15%', height: '20%' }} />
+          {/* 地図ラベル */}
+          <div className="absolute text-gray-400 text-xs" style={{ left: '35%', top: '42%' }}>○○団地メインロード</div>
+        </div>
+
+        {/* 停留所ボタン */}
+        {STOPS.map((stop) => (
+          <button
+            key={stop.id}
+            onClick={() => handleStopClick(stop)}
+            disabled={step === STEP.CONFIRMED || (step === STEP.SELECT_TO && stop.id === from?.id)}
+            className={`
+              absolute transform -translate-x-1/2 -translate-y-1/2
+              text-xs font-bold px-2 py-1 rounded-full border-2
+              shadow-md transition-all duration-200
+              ${getStopStyle(stop)}
+              ${step === STEP.CONFIRMED ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}
+              ${step === STEP.SELECT_TO && stop.id === from?.id ? 'cursor-not-allowed opacity-80' : ''}
+            `}
+            style={{ left: `${stop.x}%`, top: `${stop.y}%`, minWidth: 'max-content', zIndex: 10 }}
+          >
+            📍 {stop.name}
+          </button>
+        ))}
+
+        {/* 出発地・目的地の凡例 */}
+        {from && (
+          <div className="absolute bottom-1 left-1 right-1 flex gap-1 text-xs z-20">
+            <span className="bg-blue-500 text-white px-2 py-0.5 rounded-full">🔵 出発: {from.name}</span>
+            {to && <span className="bg-orange-500 text-white px-2 py-0.5 rounded-full">🟠 目的: {to.name}</span>}
+          </div>
+        )}
+      </div>
+
+      {/* ===== 操作エリア（下半分） ===== */}
+      <div className="flex-1 bg-gray-100 flex flex-col overflow-y-auto">
+
+        {/* チャット風のオペレーター案内 */}
+        <div className="flex items-start gap-2 px-3 pt-3">
+          {/* オペレーターのアイコン */}
+          <div className="flex-none w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-white text-lg shadow">
+            🧑‍✈️
+          </div>
+          {/* 吹き出し */}
+          <div className="relative bg-white rounded-2xl rounded-tl-none px-4 py-3 shadow text-sm text-gray-800 max-w-xs">
+            <div className="absolute -left-2 top-3 w-0 h-0 border-t-8 border-t-transparent border-b-8 border-b-transparent border-r-8 border-r-white" />
+            <p className="font-bold text-green-700 text-xs mb-0.5">オペレーター</p>
+            {getMessage().split('\n').map((line, i) => (
+              <p key={i}>{line}</p>
+            ))}
+          </div>
+        </div>
+
+        {/* 人数選択 */}
+        {(step === STEP.SELECT_COUNT || step === STEP.CONFIRMED) && (
+          <div className="px-3 pt-3">
+            <p className="text-xs text-gray-500 mb-2 ml-12">人数を選んでください</p>
+            <div className="ml-12 flex gap-2 flex-wrap">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => handleCountClick(n)}
+                  disabled={step === STEP.CONFIRMED}
+                  className={`
+                    w-12 h-12 rounded-full border-2 font-bold text-sm transition-all
+                    ${count === n
+                      ? 'bg-green-600 text-white border-green-700 shadow-lg scale-110'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-green-400 active:scale-95'
+                    }
+                    ${step === STEP.CONFIRMED ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}
+                  `}
+                >
+                  {n}人
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 予約内容のまとめ（人数を選んだ後） */}
+        {step === STEP.SELECT_COUNT && count !== null && (
+          <div className="mx-3 mt-3 bg-white rounded-xl p-3 shadow text-sm">
+            <p className="font-bold text-gray-700 mb-2">📋 予約内容の確認</p>
+            <div className="space-y-1 text-gray-600">
+              <p>🔵 出発地：<span className="font-bold text-gray-800">{from?.name}</span></p>
+              <p>🟠 目的地：<span className="font-bold text-gray-800">{to?.name}</span></p>
+              <p>👥 人数：<span className="font-bold text-gray-800">{count}人</span></p>
+            </div>
+          </div>
+        )}
+
+        {/* 確定ボタン */}
+        {step === STEP.SELECT_COUNT && (
+          <div className="px-3 pt-3 pb-2">
+            <button
+              onClick={handleConfirm}
+              disabled={!canConfirm}
+              className={`
+                w-full py-4 rounded-2xl font-bold text-lg shadow-lg transition-all
+                ${canConfirm
+                  ? 'bg-green-600 text-white hover:bg-green-500 active:scale-95'
+                  : 'bg-gray-300 text-gray-400 cursor-not-allowed'
+                }
+              `}
+            >
+              ✅ OK（配車を確定する）
+            </button>
+          </div>
+        )}
+
+        {/* もう一度ボタン（確定後） */}
+        {step === STEP.CONFIRMED && (
+          <div className="px-3 pt-3 pb-2">
+            <button
+              onClick={handleReset}
+              className="w-full py-3 rounded-2xl font-bold text-sm border-2 border-green-600 text-green-600 hover:bg-green-50 active:scale-95 transition-all"
+            >
+              🔄 もう一度予約する
+            </button>
+          </div>
+        )}
+
+        <div className="flex-1" />
+      </div>
+
+      {/* ===== 確定ポップアップ ===== */}
+      {showPopup && (
+        <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50 px-6">
+          <div className="bg-white rounded-3xl p-6 w-full shadow-2xl text-center animate-bounce-once">
+            {/* アイコン */}
+            <div className="text-6xl mb-3">🚐</div>
+            <p className="text-green-600 font-bold text-lg mb-1">車が確定しました！</p>
+            <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-4">
+              <p className="font-bold text-gray-800 text-base">ハイエース</p>
+              <p className="text-2xl font-bold text-green-700 tracking-wider">福岡300い12-01</p>
+            </div>
+            <div className="text-sm text-gray-600 mb-4 space-y-1">
+              <p>🔵 {from?.name} → 🟠 {to?.name}</p>
+              <p>👥 {count}人</p>
+              <p className="text-xs text-gray-400 mt-2">まもなく到着します。乗り場でお待ちください。</p>
+            </div>
+            <button
+              onClick={handleReset}
+              className="w-full py-3 bg-green-600 text-white font-bold rounded-2xl hover:bg-green-500 active:scale-95 transition-all"
+            >
+              閉じる
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
