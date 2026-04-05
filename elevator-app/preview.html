@@ -4,277 +4,547 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>団地のりあい便</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-  font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic', sans-serif;
-  background: #e5e7eb;
+  font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic', Meiryo, sans-serif;
+  background: #d1d5db;
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
 }
-#root {
+#app {
   width: 100%;
   max-width: 390px;
   height: 100vh;
   max-height: 844px;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 25px 50px rgba(0,0,0,0.4);
+  position: relative;
 }
 @media (max-width: 430px) {
-  #root { max-height: none; }
+  #app { max-height: none; border-radius: 0; }
+  body { align-items: flex-start; }
 }
+
+/* ステータスバー */
+.statusbar {
+  background: #1f2937;
+  color: #fff;
+  font-size: 11px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 16px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+/* ヘッダー */
+.header {
+  background: #16a34a;
+  color: #fff;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+.header-icon { font-size: 22px; }
+.header-title { font-weight: 700; font-size: 14px; line-height: 1.2; }
+.header-sub { font-size: 11px; color: #bbf7d0; }
+.header-badge {
+  margin-left: auto;
+  background: #15803d;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+/* 地図エリア */
+#map-area {
+  position: relative;
+  flex: 0 0 45%;
+  overflow: hidden;
+  background: #f0fdf4;
+}
+.map-bg { position: absolute; inset: 0; }
+.road-h {
+  position: absolute; left: 0; right: 0;
+  background: #d1d5db;
+}
+.road-main {
+  position: absolute; left: 0; right: 0;
+  background: #fef9c3;
+  border-bottom: 1px solid #9ca3af;
+}
+.road-v {
+  position: absolute; top: 0; bottom: 0;
+  background: #d1d5db;
+}
+.block {
+  position: absolute;
+  border-radius: 4px;
+}
+.map-label {
+  position: absolute;
+  font-size: 10px;
+  color: #9ca3af;
+  white-space: nowrap;
+}
+
+/* 停留所ボタン */
+.stop-btn {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 2px solid;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  cursor: pointer;
+  transition: transform 0.15s, opacity 0.15s;
+  white-space: nowrap;
+  z-index: 10;
+  line-height: 1.3;
+}
+.stop-btn:active { transform: translate(-50%, -50%) scale(0.92); }
+.stop-default { background: #22c55e; color: #fff; border-color: #16a34a; }
+.stop-default:hover { background: #4ade80; }
+.stop-from { background: #3b82f6; color: #fff; border-color: #2563eb; transform: translate(-50%, -50%) scale(1.1); }
+.stop-to   { background: #f97316; color: #fff; border-color: #ea580c; transform: translate(-50%, -50%) scale(1.1); }
+.stop-disabled { opacity: 0.65; cursor: not-allowed; }
+
+/* 凡例 */
+.map-legend {
+  position: absolute;
+  bottom: 4px; left: 4px; right: 4px;
+  display: flex;
+  gap: 4px;
+  z-index: 20;
+}
+.legend-item {
+  font-size: 10px;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.legend-from { background: #3b82f6; }
+.legend-to   { background: #f97316; }
+
+/* 操作エリア */
+#chat-area {
+  flex: 1;
+  background: #f3f4f6;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 12px;
+  gap: 10px;
+}
+
+/* チャット吹き出し */
+.chat-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.avatar {
+  width: 40px; height: 40px;
+  background: #16a34a;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+.bubble {
+  position: relative;
+  background: #fff;
+  border-radius: 16px;
+  border-top-left-radius: 4px;
+  padding: 10px 14px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  font-size: 13px;
+  color: #1f2937;
+  max-width: 240px;
+}
+.bubble::before {
+  content: '';
+  position: absolute;
+  left: -8px; top: 10px;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-right: 8px solid #fff;
+}
+.bubble-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #16a34a;
+  margin-bottom: 3px;
+}
+
+/* 人数ボタン */
+.count-section { margin-left: 48px; }
+.count-hint { font-size: 11px; color: #6b7280; margin-bottom: 6px; }
+.count-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.count-btn {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  border: 2px solid #d1d5db;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.count-btn:hover { border-color: #22c55e; }
+.count-btn:active { transform: scale(0.92); }
+.count-btn.selected {
+  background: #16a34a;
+  color: #fff;
+  border-color: #15803d;
+  transform: scale(1.1);
+}
+.count-btn:disabled { opacity: 0.65; cursor: not-allowed; }
+
+/* 予約確認カード */
+.confirm-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  font-size: 13px;
+}
+.confirm-card-title {
+  font-weight: 700;
+  color: #374151;
+  margin-bottom: 8px;
+}
+.confirm-card-row { color: #4b5563; margin-bottom: 4px; }
+.confirm-card-row span { font-weight: 700; color: #111827; }
+
+/* OKボタン */
+.ok-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 16px;
+  border: none;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.ok-btn.active { background: #16a34a; color: #fff; }
+.ok-btn.active:hover { background: #22c55e; }
+.ok-btn.active:active { transform: scale(0.97); }
+.ok-btn.inactive { background: #e5e7eb; color: #9ca3af; cursor: not-allowed; }
+
+/* リセットボタン */
+.reset-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 16px;
+  border: 2px solid #16a34a;
+  background: transparent;
+  color: #16a34a;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.reset-btn:hover { background: #f0fdf4; }
+.reset-btn:active { transform: scale(0.97); }
+
+/* ポップアップ */
+#popup {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 50;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+#popup.show { display: flex; }
+.popup-card {
+  background: #fff;
+  border-radius: 24px;
+  padding: 28px 24px;
+  width: 100%;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+  text-align: center;
+  animation: popIn 0.25s ease-out;
+}
+@keyframes popIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+.popup-icon { font-size: 60px; margin-bottom: 12px; }
+.popup-title { font-size: 17px; font-weight: 700; color: #16a34a; margin-bottom: 10px; }
+.popup-plate-box {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+.popup-vehicle { font-weight: 700; color: #111827; font-size: 15px; margin-bottom: 4px; }
+.popup-plate { font-size: 26px; font-weight: 900; color: #16a34a; letter-spacing: 2px; }
+.popup-route { font-size: 13px; color: #4b5563; margin-bottom: 6px; }
+.popup-note { font-size: 11px; color: #9ca3af; margin-bottom: 20px; }
+.popup-close-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 16px;
+  border: none;
+  background: #16a34a;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.popup-close-btn:hover { background: #22c55e; }
 </style>
 </head>
 <body>
-<div id="root"></div>
-<script type="text/babel">
-const { useState } = React;
+<div id="app">
 
-const STOPS = [
-  { id: 1, name: '看護科学大学', x: 20, y: 15 },
-  { id: 2, name: '公民館',       x: 65, y: 25 },
-  { id: 3, name: 'グリーンプラザ', x: 45, y: 55 },
-  { id: 4, name: '東団地入口',   x: 15, y: 60 },
-  { id: 5, name: '中央広場',     x: 75, y: 65 },
-  { id: 6, name: '南停留所',     x: 55, y: 80 },
-];
+  <!-- ステータスバー -->
+  <div class="statusbar">
+    <span>9:41</span>
+    <span>団地のりあい便</span>
+    <span>●●●</span>
+  </div>
 
-const STEP = {
-  SELECT_FROM: 'SELECT_FROM',
-  SELECT_TO:   'SELECT_TO',
-  SELECT_COUNT: 'SELECT_COUNT',
-  CONFIRMED:   'CONFIRMED',
+  <!-- ヘッダー -->
+  <div class="header">
+    <span class="header-icon">🚐</span>
+    <div>
+      <div class="header-title">団地のりあい便</div>
+      <div class="header-sub">オンデマンド配車サービス</div>
+    </div>
+    <div class="header-badge">運行中</div>
+  </div>
+
+  <!-- 地図エリア -->
+  <div id="map-area">
+    <div class="map-bg">
+      <div class="road-h" style="top:35%;height:8px"></div>
+      <div class="road-main" style="top:50%;height:12px"></div>
+      <div class="road-h" style="top:68%;height:6px"></div>
+      <div class="road-v" style="left:30%;width:8px"></div>
+      <div class="road-v" style="left:65%;width:6px"></div>
+      <div class="block" style="left:5%;top:5%;width:18%;height:22%;background:#bbf7d0"></div>
+      <div class="block" style="left:50%;top:58%;width:12%;height:18%;background:#86efac"></div>
+      <div class="block" style="left:68%;top:10%;width:20%;height:15%;background:#bfdbfe"></div>
+      <div class="block" style="left:10%;top:65%;width:15%;height:20%;background:#e5e7eb"></div>
+      <div class="map-label" style="left:35%;top:43%">○○団地メインロード</div>
+    </div>
+
+    <!-- 停留所ボタン（JS で制御） -->
+    <button class="stop-btn stop-default" id="stop-1" style="left:20%;top:15%" onclick="selectStop(1)">📍 看護科学大学</button>
+    <button class="stop-btn stop-default" id="stop-2" style="left:65%;top:25%" onclick="selectStop(2)">📍 公民館</button>
+    <button class="stop-btn stop-default" id="stop-3" style="left:45%;top:55%" onclick="selectStop(3)">📍 グリーンプラザ</button>
+    <button class="stop-btn stop-default" id="stop-4" style="left:15%;top:60%" onclick="selectStop(4)">📍 東団地入口</button>
+    <button class="stop-btn stop-default" id="stop-5" style="left:75%;top:65%" onclick="selectStop(5)">📍 中央広場</button>
+    <button class="stop-btn stop-default" id="stop-6" style="left:55%;top:82%" onclick="selectStop(6)">📍 南停留所</button>
+
+    <div class="map-legend" id="map-legend" style="display:none">
+      <span class="legend-item legend-from" id="legend-from"></span>
+      <span class="legend-item legend-to"   id="legend-to"   style="display:none"></span>
+    </div>
+  </div>
+
+  <!-- 操作エリア -->
+  <div id="chat-area">
+
+    <!-- オペレーター吹き出し -->
+    <div class="chat-row">
+      <div class="avatar">🧑‍✈️</div>
+      <div class="bubble">
+        <div class="bubble-label">オペレーター</div>
+        <div id="bubble-text">どこから乗る？地図から選んでね！</div>
+      </div>
+    </div>
+
+    <!-- 人数選択（hidden → visible） -->
+    <div class="count-section" id="count-section" style="display:none">
+      <div class="count-hint">人数を選んでください</div>
+      <div class="count-btns" id="count-btns">
+        <button class="count-btn" onclick="selectCount(1)">1人</button>
+        <button class="count-btn" onclick="selectCount(2)">2人</button>
+        <button class="count-btn" onclick="selectCount(3)">3人</button>
+        <button class="count-btn" onclick="selectCount(4)">4人</button>
+        <button class="count-btn" onclick="selectCount(5)">5人</button>
+      </div>
+    </div>
+
+    <!-- 予約内容確認カード -->
+    <div class="confirm-card" id="confirm-card" style="display:none">
+      <div class="confirm-card-title">📋 予約内容の確認</div>
+      <div class="confirm-card-row">🔵 出発地：<span id="card-from"></span></div>
+      <div class="confirm-card-row">🟠 目的地：<span id="card-to"></span></div>
+      <div class="confirm-card-row">👥 人数：<span id="card-count"></span></div>
+    </div>
+
+    <!-- OKボタン -->
+    <button class="ok-btn inactive" id="ok-btn" onclick="confirm()" disabled>✅ OK（配車を確定する）</button>
+
+    <!-- リセットボタン（確定後） -->
+    <button class="reset-btn" id="reset-btn" onclick="reset()" style="display:none">🔄 もう一度予約する</button>
+
+  </div>
+
+  <!-- ポップアップ -->
+  <div id="popup">
+    <div class="popup-card">
+      <div class="popup-icon">🚐</div>
+      <div class="popup-title">車が確定しました！</div>
+      <div class="popup-plate-box">
+        <div class="popup-vehicle">ハイエース</div>
+        <div class="popup-plate">福岡300い12-01</div>
+      </div>
+      <div class="popup-route" id="popup-route"></div>
+      <div class="popup-note">まもなく到着します。乗り場でお待ちください。</div>
+      <button class="popup-close-btn" onclick="reset()">閉じる</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const STOPS = {
+  1: '看護科学大学',
+  2: '公民館',
+  3: 'グリーンプラザ',
+  4: '東団地入口',
+  5: '中央広場',
+  6: '南停留所',
 };
 
-function App() {
-  const [step, setStep] = useState(STEP.SELECT_FROM);
-  const [from, setFrom] = useState(null);
-  const [to, setTo]     = useState(null);
-  const [count, setCount] = useState(null);
-  const [showPopup, setShowPopup] = useState(false);
+let fromId = null;
+let toId   = null;
+let count  = null;
+let step   = 'from'; // 'from' | 'to' | 'count' | 'done'
 
-  const handleStopClick = (stop) => {
-    if (step === STEP.SELECT_FROM) {
-      setFrom(stop);
-      setStep(STEP.SELECT_TO);
-    } else if (step === STEP.SELECT_TO) {
-      if (stop.id === from.id) return;
-      setTo(stop);
-      setStep(STEP.SELECT_COUNT);
-    }
-  };
-
-  const handleCountClick = (n) => { setCount(n); };
-
-  const handleConfirm = () => {
-    setShowPopup(true);
-    setStep(STEP.CONFIRMED);
-  };
-
-  const handleReset = () => {
-    setStep(STEP.SELECT_FROM);
-    setFrom(null);
-    setTo(null);
-    setCount(null);
-    setShowPopup(false);
-  };
-
-  const getMessage = () => {
-    if (step === STEP.SELECT_FROM) return 'どこから乗る？地図から選んでね！';
-    if (step === STEP.SELECT_TO) return `「${from.name}」から出発ね！\nどこで降りる？`;
-    if (step === STEP.SELECT_COUNT || step === STEP.CONFIRMED)
-      return `「${from.name}」から「${to.name}」へ。\n何人で乗る？`;
-    return '';
-  };
-
-  const getStopStyle = (stop) => {
-    if (from && stop.id === from.id)
-      return 'bg-blue-500 text-white border-blue-600 shadow-lg scale-110';
-    if (to && stop.id === to.id)
-      return 'bg-orange-500 text-white border-orange-600 shadow-lg scale-110';
-    return 'bg-green-500 text-white border-green-600 hover:bg-green-400 active:scale-95';
-  };
-
-  const canConfirm = count !== null;
-
-  return (
-    <div className="relative w-full h-full flex flex-col bg-white overflow-hidden rounded-2xl shadow-2xl">
-
-      {/* ステータスバー */}
-      <div className="flex-none bg-gray-800 text-white text-xs flex justify-between items-center px-4 py-1 h-6">
-        <span>9:41</span>
-        <span>団地のりあい便</span>
-        <span>●●●</span>
-      </div>
-
-      {/* ヘッダー */}
-      <div className="flex-none bg-green-600 text-white px-4 py-3 flex items-center gap-2 shadow">
-        <span className="text-xl">🚐</span>
-        <div>
-          <p className="font-bold text-sm leading-tight">団地のりあい便</p>
-          <p className="text-xs text-green-100">オンデマンド配車サービス</p>
-        </div>
-        <div className="ml-auto text-xs bg-green-500 px-2 py-1 rounded-full">運行中</div>
-      </div>
-
-      {/* 地図エリア */}
-      <div className="relative overflow-hidden" style={{ flex: '0 0 45%' }}>
-        <div className="absolute inset-0 bg-green-50">
-          <div className="absolute bg-gray-300" style={{ top: '35%', left: 0, right: 0, height: 8 }} />
-          <div className="absolute bg-gray-300" style={{ top: '68%', left: 0, right: 0, height: 6 }} />
-          <div className="absolute bg-yellow-100 border-b border-gray-400" style={{ top: '50%', left: 0, right: 0, height: 12 }} />
-          <div className="absolute bg-gray-300" style={{ left: '30%', top: 0, bottom: 0, width: 8 }} />
-          <div className="absolute bg-gray-300" style={{ left: '65%', top: 0, bottom: 0, width: 6 }} />
-          <div className="absolute bg-green-200 rounded" style={{ left: '5%', top: '5%', width: '18%', height: '22%' }} />
-          <div className="absolute bg-green-300 rounded" style={{ left: '50%', top: '58%', width: '12%', height: '18%' }} />
-          <div className="absolute bg-blue-100 rounded" style={{ left: '68%', top: '10%', width: '20%', height: '15%' }} />
-          <div className="absolute bg-gray-200 rounded" style={{ left: '10%', top: '65%', width: '15%', height: '20%' }} />
-          <div className="absolute text-gray-400 text-xs" style={{ left: '35%', top: '42%' }}>○○団地メインロード</div>
-        </div>
-
-        {STOPS.map((stop) => (
-          <button
-            key={stop.id}
-            onClick={() => handleStopClick(stop)}
-            disabled={step === STEP.CONFIRMED || (step === STEP.SELECT_TO && stop.id === from?.id)}
-            className={`
-              absolute transform -translate-x-1/2 -translate-y-1/2
-              text-xs font-bold px-2 py-1 rounded-full border-2
-              shadow-md transition-all duration-200
-              ${getStopStyle(stop)}
-              ${step === STEP.CONFIRMED ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}
-              ${step === STEP.SELECT_TO && stop.id === from?.id ? 'cursor-not-allowed opacity-80' : ''}
-            `}
-            style={{ left: `${stop.x}%`, top: `${stop.y}%`, minWidth: 'max-content', zIndex: 10 }}
-          >
-            📍 {stop.name}
-          </button>
-        ))}
-
-        {from && (
-          <div className="absolute bottom-1 left-1 right-1 flex gap-1 text-xs z-20">
-            <span className="bg-blue-500 text-white px-2 py-0.5 rounded-full">🔵 出発: {from.name}</span>
-            {to && <span className="bg-orange-500 text-white px-2 py-0.5 rounded-full">🟠 目的: {to.name}</span>}
-          </div>
-        )}
-      </div>
-
-      {/* 操作エリア */}
-      <div className="flex-1 bg-gray-100 flex flex-col overflow-y-auto">
-        <div className="flex items-start gap-2 px-3 pt-3">
-          <div className="flex-none w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-white text-lg shadow">
-            🧑‍✈️
-          </div>
-          <div className="relative bg-white rounded-2xl rounded-tl-none px-4 py-3 shadow text-sm text-gray-800 max-w-xs">
-            <div className="absolute -left-2 top-3 w-0 h-0 border-t-8 border-t-transparent border-b-8 border-b-transparent border-r-8 border-r-white" />
-            <p className="font-bold text-green-700 text-xs mb-0.5">オペレーター</p>
-            {getMessage().split('\n').map((line, i) => (
-              <p key={i}>{line}</p>
-            ))}
-          </div>
-        </div>
-
-        {(step === STEP.SELECT_COUNT || step === STEP.CONFIRMED) && (
-          <div className="px-3 pt-3">
-            <p className="text-xs text-gray-500 mb-2 ml-12">人数を選んでください</p>
-            <div className="ml-12 flex gap-2 flex-wrap">
-              {[1, 2, 3, 4, 5].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => handleCountClick(n)}
-                  disabled={step === STEP.CONFIRMED}
-                  className={`
-                    w-12 h-12 rounded-full border-2 font-bold text-sm transition-all
-                    ${count === n
-                      ? 'bg-green-600 text-white border-green-700 shadow-lg scale-110'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-green-400 active:scale-95'
-                    }
-                    ${step === STEP.CONFIRMED ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}
-                  `}
-                >
-                  {n}人
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {step === STEP.SELECT_COUNT && count !== null && (
-          <div className="mx-3 mt-3 bg-white rounded-xl p-3 shadow text-sm">
-            <p className="font-bold text-gray-700 mb-2">📋 予約内容の確認</p>
-            <div className="space-y-1 text-gray-600">
-              <p>🔵 出発地：<span className="font-bold text-gray-800">{from?.name}</span></p>
-              <p>🟠 目的地：<span className="font-bold text-gray-800">{to?.name}</span></p>
-              <p>👥 人数：<span className="font-bold text-gray-800">{count}人</span></p>
-            </div>
-          </div>
-        )}
-
-        {step === STEP.SELECT_COUNT && (
-          <div className="px-3 pt-3 pb-2">
-            <button
-              onClick={handleConfirm}
-              disabled={!canConfirm}
-              className={`
-                w-full py-4 rounded-2xl font-bold text-lg shadow-lg transition-all
-                ${canConfirm
-                  ? 'bg-green-600 text-white hover:bg-green-500 active:scale-95'
-                  : 'bg-gray-300 text-gray-400 cursor-not-allowed'
-                }
-              `}
-            >
-              ✅ OK（配車を確定する）
-            </button>
-          </div>
-        )}
-
-        {step === STEP.CONFIRMED && (
-          <div className="px-3 pt-3 pb-2">
-            <button
-              onClick={handleReset}
-              className="w-full py-3 rounded-2xl font-bold text-sm border-2 border-green-600 text-green-600 hover:bg-green-50 active:scale-95 transition-all"
-            >
-              🔄 もう一度予約する
-            </button>
-          </div>
-        )}
-
-        <div className="flex-1" />
-      </div>
-
-      {/* 確定ポップアップ */}
-      {showPopup && (
-        <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50 px-6">
-          <div className="bg-white rounded-3xl p-6 w-full shadow-2xl text-center">
-            <div className="text-6xl mb-3">🚐</div>
-            <p className="text-green-600 font-bold text-lg mb-1">車が確定しました！</p>
-            <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-4">
-              <p className="font-bold text-gray-800 text-base">ハイエース</p>
-              <p className="text-2xl font-bold text-green-700 tracking-wider">福岡300い12-01</p>
-            </div>
-            <div className="text-sm text-gray-600 mb-4 space-y-1">
-              <p>🔵 {from?.name} → 🟠 {to?.name}</p>
-              <p>👥 {count}人</p>
-              <p className="text-xs text-gray-400 mt-2">まもなく到着します。乗り場でお待ちください。</p>
-            </div>
-            <button
-              onClick={handleReset}
-              className="w-full py-3 bg-green-600 text-white font-bold rounded-2xl hover:bg-green-500 active:scale-95 transition-all"
-            >
-              閉じる
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+function selectStop(id) {
+  if (step === 'from') {
+    fromId = id;
+    step = 'to';
+    updateStopStyles();
+    document.getElementById('bubble-text').textContent =
+      `「${STOPS[id]}」から出発ね！\nどこで降りる？`;
+    showLegend();
+  } else if (step === 'to') {
+    if (id === fromId) return;
+    toId = id;
+    step = 'count';
+    updateStopStyles();
+    document.getElementById('bubble-text').textContent =
+      `「${STOPS[fromId]}」から「${STOPS[toId]}」へ。\n何人で乗る？`;
+    showLegend();
+    document.getElementById('count-section').style.display = 'block';
+    document.getElementById('ok-btn').style.display = 'block';
+  }
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+function selectCount(n) {
+  if (step !== 'count') return;
+  count = n;
+  // ボタンのスタイル更新
+  document.querySelectorAll('.count-btn').forEach((btn, i) => {
+    btn.classList.toggle('selected', i + 1 === n);
+  });
+  // 確認カード表示
+  document.getElementById('card-from').textContent  = STOPS[fromId];
+  document.getElementById('card-to').textContent    = STOPS[toId];
+  document.getElementById('card-count').textContent = n + '人';
+  document.getElementById('confirm-card').style.display = 'block';
+  // OKボタン有効化
+  const btn = document.getElementById('ok-btn');
+  btn.classList.remove('inactive');
+  btn.classList.add('active');
+  btn.disabled = false;
+}
+
+function confirm() {
+  if (!count) return;
+  step = 'done';
+  document.getElementById('popup-route').textContent =
+    `🔵 ${STOPS[fromId]} → 🟠 ${STOPS[toId]}　👥 ${count}人`;
+  document.getElementById('popup').classList.add('show');
+  document.getElementById('ok-btn').style.display = 'none';
+  document.getElementById('reset-btn').style.display = 'block';
+  // 停留所を操作不能に
+  document.querySelectorAll('.stop-btn').forEach(b => {
+    b.disabled = true;
+    b.classList.add('stop-disabled');
+  });
+  document.querySelectorAll('.count-btn').forEach(b => b.disabled = true);
+}
+
+function reset() {
+  fromId = null; toId = null; count = null; step = 'from';
+  document.getElementById('popup').classList.remove('show');
+  document.getElementById('bubble-text').textContent = 'どこから乗る？地図から選んでね！';
+  document.getElementById('count-section').style.display = 'none';
+  document.getElementById('confirm-card').style.display = 'none';
+  document.getElementById('map-legend').style.display = 'none';
+  document.getElementById('legend-to').style.display = 'none';
+  const okBtn = document.getElementById('ok-btn');
+  okBtn.classList.remove('active'); okBtn.classList.add('inactive');
+  okBtn.disabled = true; okBtn.style.display = 'block';
+  document.getElementById('reset-btn').style.display = 'none';
+  document.querySelectorAll('.stop-btn').forEach(b => {
+    b.disabled = false;
+    b.className = 'stop-btn stop-default';
+    b.classList.remove('stop-disabled');
+  });
+  document.querySelectorAll('.count-btn').forEach(b => {
+    b.disabled = false;
+    b.classList.remove('selected');
+  });
+}
+
+function updateStopStyles() {
+  document.querySelectorAll('.stop-btn').forEach(btn => {
+    const id = parseInt(btn.id.replace('stop-', ''));
+    btn.className = 'stop-btn';
+    if (id === fromId) {
+      btn.classList.add('stop-from');
+      btn.disabled = true;
+    } else if (id === toId) {
+      btn.classList.add('stop-to');
+    } else {
+      btn.classList.add('stop-default');
+    }
+  });
+}
+
+function showLegend() {
+  const legend = document.getElementById('map-legend');
+  legend.style.display = 'flex';
+  document.getElementById('legend-from').textContent = '🔵 出発: ' + STOPS[fromId];
+  if (toId) {
+    const lt = document.getElementById('legend-to');
+    lt.style.display = 'inline';
+    lt.textContent = '🟠 目的: ' + STOPS[toId];
+  }
+}
 </script>
 </body>
 </html>
